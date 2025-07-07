@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}Vagas - SysParking - Corpo de Bombeiros Militar do Estado do Piauí{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-car"></i> Vagas</h2>
+            <div>
+                <a href="{% url 'secoes:historico_vagas' %}" class="btn btn-info me-2">
+                    <i class="fas fa-history"></i> Histórico
+                </a>
+                <a href="{% url 'secoes:gerar_lista_vagas' %}" class="btn btn-success me-2" target="_blank">
+                    <i class="fas fa-file-pdf"></i> Gerar Lista de Vagas
+                </a>
+                {% if user.tipo_usuario == 'admin' or user.tipo_usuario == 'digitador' %}
+                <a href="{% url 'secoes:spot_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nova Vaga
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="secao" class="form-label">Filtrar por Seção</label>
+                        <select name="secao" id="secao" class="form-select">
+                            <option value="">Todas as seções</option>
+                            {% for section in sections %}
+                                <option value="{{ section.id }}" {% if request.GET.secao == section.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ section.nome }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="pesquisa" class="form-label">Pesquisar</label>
+                        <input type="text" name="pesquisa" id="pesquisa" class="form-control" 
+                               placeholder="Placa, nome do militar, matrícula ou CPF" 
+                               value="{{ pesquisa }}">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-search"></i> Pesquise por placa, nome do militar, matrícula ou CPF
+                        </small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            <a href="{% url 'secoes:spot_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Limpar
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" name="mostrar_inativas" value="true" id="mostrar_inativas" 
+                                   {% if mostrar_inativas %}checked{% endif %}>
+                            <label class="form-check-label" for="mostrar_inativas">
+                                <i class="fas fa-history"></i> Mostrar vagas inativas (histórico)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if spots %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="text-center">Seção</th>
+                            <th class="text-center">Bombeiro Militar</th>
+                            <th class="text-center">Veículos</th>
+                            <th class="text-center">Identificador</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Termo</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for spot in spots %}
+                        <tr {% if not spot.ativo %}class="table-secondary"{% endif %}>
+                            <td>
+                                <strong>{{ spot.secao.nome|upper }}</strong>
+                                <br>
+                                <small class="text-muted">{{ spot.identificador|default:"SEM ID"|upper }}</small>
+                                {% if not spot.ativo %}
+                                    <br><span class="badge bg-secondary"><i class="fas fa-ban"></i> INATIVA</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if spot.nome_bombeiro %}
+                                    <div class="small">
+                                        <strong>{{ spot.get_posto_bombeiro_display|upper }}</strong><br>
+                                        {{ spot.nome_bombeiro|upper }}<br>
+                                        {% if spot.cpf_bombeiro %}
+                                            <span class="text-muted">{{ spot.cpf_bombeiro|upper }}</span>
+                                        {% endif %}
+                                        {% if spot.matricula_bombeiro %}
+                                            <br><span class="text-muted">{{ spot.matricula_bombeiro|upper }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small">
+                                    <!-- Veículo Principal -->
+                                    {% if spot.placa_veiculo %}
+                                        <div class="mb-1">
+                                            <strong><i class="fas fa-car"></i> PRINCIPAL:</strong><br>
+                                            <strong>{{ spot.placa_veiculo|upper }}</strong><br>
+                                            {{ spot.marca_veiculo|upper }} {{ spot.modelo_veiculo|upper }}<br>
+                                            <span class="text-muted">{{ spot.get_tipo_veiculo_display|upper }} - {{ spot.cor_veiculo|upper }} ({{ spot.ano_veiculo }})</span>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Veículo Adicional -->
+                                    {% if spot.placa_veiculo_adicional %}
+                                        <div class="mb-1">
+                                            <strong><i class="fas fa-car-side"></i> ADICIONAL:</strong><br>
+                                            <strong>{{ spot.placa_veiculo_adicional|upper }}</strong><br>
+                                            {% if spot.marca_veiculo_adicional %}
+                                                {{ spot.marca_veiculo_adicional|upper }} {{ spot.modelo_veiculo_adicional|upper }}<br>
+                                                <span class="text-muted">{{ spot.get_tipo_veiculo_adicional_display|upper }} - {{ spot.cor_veiculo_adicional|upper }}</span>
+                                                {% if spot.ano_veiculo_adicional %}
+                                                    <span class="text-muted"> ({{ spot.ano_veiculo_adicional }})</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Apenas placa cadastrada</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Moto -->
+                                    {% if spot.placa_moto %}
+                                        <div class="mb-1">
+                                            <strong><i class="fas fa-motorcycle"></i> MOTO:</strong><br>
+                                            <strong>{{ spot.placa_moto|upper }}</strong><br>
+                                            {% if spot.marca_moto %}
+                                                {{ spot.marca_moto|upper }} {{ spot.modelo_moto|upper }}<br>
+                                                <span class="text-muted">{{ spot.cor_moto|upper }}</span>
+                                                {% if spot.ano_moto %}
+                                                    <span class="text-muted"> ({{ spot.ano_moto }})</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Apenas placa cadastrada</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if not spot.placa_veiculo and not spot.placa_veiculo_adicional and not spot.placa_moto %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <strong>{{ spot.identificador|default:"SEM ID"|upper }}</strong>
+                                <br>
+                                <small class="text-muted">{{ spot.secao.nome|upper }}</small>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    {% if spot.tipo_cobertura == 'coberta' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-umbrella"></i> COBERTA
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-sun"></i> DESCOBERTA
+                                        </span>
+                                    {% endif %}
+                                    {% if spot.nominada == 'nominada' %}
+                                        <span class="badge bg-primary">
+                                            <i class="fas fa-user"></i> NOMINADA
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-users"></i> NÃO NOMINADA
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if spot.termos_compromisso.exists %}
+                                    {% with ultimo_termo=spot.termos_compromisso.first %}
+                                    <div class="text-center">
+                                        <span class="badge bg-success mb-1">
+                                            <i class="fas fa-check"></i> {{ spot.termos_compromisso.count }} DOC(S)
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">Último: {{ ultimo_termo.numero_documento }}</small>
+                                        <br>
+                                        <a href="{% url 'secoes:upload_termo_vaga' spot.pk %}" 
+                                           class="btn btn-sm btn-outline-info mt-1" 
+                                           title="Ver todos os documentos">
+                                            <i class="fas fa-list"></i> Ver Lista
+                                        </a>
+                                        {% if user.tipo_usuario == 'admin' %}
+                                            <a href="{{ ultimo_termo.arquivo.url }}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               target="_blank" 
+                                               title="Visualizar último arquivo">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'secoes:upload_termo_vaga' spot.pk %}" 
+                                               class="btn btn-sm btn-outline-warning" 
+                                               title="Gerenciar documentos">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Apenas admin</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endwith %}
+                                {% else %}
+                                    <div class="text-center">
+                                        <span class="badge bg-warning mb-1">
+                                            <i class="fas fa-clock"></i> PENDENTE
+                                        </span>
+                                        <br>
+                                        {% if user.tipo_usuario == 'admin' %}
+                                            <a href="{% url 'secoes:upload_termo_vaga' spot.pk %}" 
+                                               class="btn btn-sm btn-outline-success" 
+                                               title="Enviar primeiro documento">
+                                                <i class="fas fa-upload"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Apenas admin</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if user.tipo_usuario == 'admin' or user.tipo_usuario == 'digitador' %}
+                                        {% if spot.ativo %}
+                                        <a href="{% url 'secoes:spot_update' spot.pk %}" 
+                                           class="btn btn-outline-primary" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% else %}
+                                        <span class="btn btn-outline-secondary disabled" title="Vaga inativa">
+                                            <i class="fas fa-ban"></i>
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
+                                    
+                                    <!-- Botão para ver detalhes da vaga -->
+                                    <a href="{% url 'secoes:spot_detail' spot.pk %}" 
+                                       class="btn btn-outline-info" 
+                                       title="Ver Detalhes da Vaga">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    
+                                    <!-- Botão para gerar termo de compromisso -->
+                                    {% if spot.nome_bombeiro %}
+                                    <a href="{% url 'secoes:gerar_termo' spot.pk %}" 
+                                       class="btn btn-outline-success" 
+                                       title="Gerar Termo de Compromisso"
+                                       target="_blank">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <!-- Botão para desativar vaga (apenas para vagas ativas) -->
+                                    {% if user.tipo_usuario == 'admin' or user.tipo_usuario == 'digitador' %}
+                                        {% if spot.ativo %}
+                                        <a href="{% url 'secoes:desativar_vaga' spot.pk %}" 
+                                           class="btn btn-outline-warning" 
+                                           title="Desativar Vaga (preserva histórico)">
+                                            <i class="fas fa-ban"></i>
+                                        </a>
+                                        {% else %}
+                                        <span class="btn btn-outline-secondary disabled" title="Vaga já inativa">
+                                            <i class="fas fa-check"></i>
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
+                                    
+                                    <!-- Botão para transferir vaga (apenas para vagas ativas com dados) -->
+                                    {% if user.tipo_usuario == 'admin' or user.tipo_usuario == 'digitador' %}
+                                        {% if spot.ativo and spot.nome_bombeiro %}
+                                        <a href="{% url 'secoes:transferir_vaga' spot.pk %}" 
+                                           class="btn btn-outline-info" 
+                                           title="Transferir Vaga (preserva todos os dados)">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                    
+                                    <!-- Botão para excluir vaga (apenas para vagas ativas) -->
+                                    {% if user.tipo_usuario == 'admin' or user.tipo_usuario == 'digitador' %}
+                                        {% if spot.ativo %}
+                                        <a href="{% url 'secoes:spot_delete' spot.pk %}" 
+                                           class="btn btn-outline-danger" title="Excluir">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Nenhuma vaga encontrada.
+                <a href="{% url 'secoes:spot_create' %}" class="alert-link">Criar primeira vaga</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 
